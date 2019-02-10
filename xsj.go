@@ -15,11 +15,12 @@ import (
 func main() {
 	cpus := runtime.NumCPU()
 	p := flag.Int("p", cpus - 2, "number of cpu to run on")
+	ds := flag.String("ds", "localhost", "ip address of db server")
 	flag.Parse()
 	runtime.GOMAXPROCS(*p)
 
 	fmt.Println("Loading database...")
-	err := initDb()
+	err := initDb(*ds)
 	if err != nil {
 		log.Println(err)
 		return
@@ -30,15 +31,14 @@ func main() {
 
 	fmt.Println("Start serving on port = 80")
 
-
-	http.HandleFunc("/register", handleRegister)
 	http.HandleFunc("/cancel", handleCancel)
 	http.HandleFunc("/course", handleCourse)
 	http.HandleFunc("/status", handleStatus)
-	http.HandleFunc("/register-info", handleRegisterInfo)
-	http.HandleFunc("/register-history", handleRegisterHistory)
+	http.HandleFunc("/register", handleRegister)
 	http.HandleFunc("/get-timer", handleGetTimer)
 	http.HandleFunc("/set-timer", handleSetTimer)
+	http.HandleFunc("/register-info", handleRegisterInfo)
+	http.HandleFunc("/register-history", handleRegisterHistory)
 
 	srv := &http.Server{
 		Addr:        ":443",

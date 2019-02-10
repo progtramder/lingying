@@ -41,9 +41,8 @@ func getSchool(name string) *school {
 	}
 
 	mutexSchool.Lock()
+	defer mutexSchool.Unlock()
 	s := schools[name]
-	mutexSchool.Unlock()
-
 	if s != nil {
 		return s
 	}
@@ -53,8 +52,6 @@ func getSchool(name string) *school {
 		return nil
 	}
 
-	mutexSchool.Lock()
 	schools[name] = s
-	mutexSchool.Unlock()
 	return s
 }

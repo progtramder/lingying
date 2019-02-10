@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
 	"github.com/mongodb/mongo-go-driver/mongo/options"
@@ -11,9 +12,10 @@ import (
 
 var dbClient *mongo.Client
 
-func initDb() (err error) {
-	dbClient, err = mongo.NewClient("mongodb://192.168.1.3:27017")
-	err = dbClient.Connect(nil)
+func initDb(ds string) (err error) {
+	dbClient, err = mongo.NewClient(fmt.Sprintf(`mongodb://%s:27017`, ds))
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	err = dbClient.Connect(ctx)
 	if err != nil {
 		log.Println(err)
 		return err
@@ -102,7 +104,7 @@ type registerData struct {
 }
 
 //channel 的缓冲大小直接影响响应性能，可以根据情况调节缓冲大小
-var dbChannel = make(chan chanHandler, 2000)
+var dbChannel = make(chan chanHandler, 20000)
 func dbRoutine() {
 	for {
 		handler := <-dbChannel
