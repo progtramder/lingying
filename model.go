@@ -76,6 +76,10 @@ func (s *school) getRegisterHistory(student string) ([]byte, error) {
 	return dbClient.getRegisterHistory(s.name, student)
 }
 
+func (s *school) getStudentProfile(student string) (string, string, error) {
+	return dbClient.getStudentProfile(s.name, student)
+}
+
 type chanHandler interface {
 	handle()
 }

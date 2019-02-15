@@ -309,7 +309,12 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(fmt.Sprintf(`{"name":"%s","avatar":"%s"}`, "王瑾萱", "/image/main.jpg")))
+	errCode := 0
+	name, avatar, err := school.getStudentProfile(student)
+	if err != nil {
+		errCode = 1
+	}
+	w.Write([]byte(fmt.Sprintf(`{"errCode":%d,"name":"%s","avatar":"%s"}`, errCode, name, avatar)))
 }
 
 func handleAuthorize(w http.ResponseWriter, r *http.Request) {
