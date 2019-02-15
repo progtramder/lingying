@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
@@ -10,25 +11,36 @@ import (
 	"time"
 )
 
-var dbClient *mongo.Client
+type database interface {
+	init(string) error
+	loadCourses(*school) error
+	registerCourse(string, string, string, string, int64) error
+	unRegisterCourse(string, string, string)
+	getRegisterHistory(string, string) ([]byte, error)
+}
 
-func initDb(ds string) (err error) {
-	dbClient, err = mongo.NewClient(fmt.Sprintf(`mongodb://%s:27017`, ds))
+type MongoDb struct {
+	dbClient *mongo.Client
+}
+
+type SqlDb struct {
+}
+
+func (self *MongoDb) init(ds string) (err error)  {
+	self.dbClient, err = mongo.NewClient(fmt.Sprintf(`mongodb://%s:27017`, ds))
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
-	err = dbClient.Connect(ctx)
+	err = self.dbClient.Connect(ctx)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
 
-	go dbRoutine()
-
 	return err
 }
 
-func (s *school) loadCourses() error {
+func (self *MongoDb) loadCourses(s *school) error {
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
-	collection := dbClient.Database(s.name).Collection("course")
+	collection := self.dbClient.Database(s.name).Collection("course")
 	cur, err := collection.Find(nil, bson.M{})
 	if err != nil {
 		log.Println(err)
@@ -49,37 +61,25 @@ func (s *school) loadCourses() error {
 	return nil
 }
 
-type chanHandler interface {
-	handle()
-}
+func (self *MongoDb) registerCourse(dbName, student, course, teacher string,
+	timestamp int64) error {
 
-type chanRegister struct {
-	db string
-	data registerData
-}
-
-func (self *chanRegister) handle() {
-	collection := dbClient.Database(self.db).Collection("register-info")
+	collection := self.dbClient.Database(dbName).Collection("register-info")
 	_, err := collection.InsertOne(nil, bson.M{
-		"student": self.data.Student,
-		"course": self.data.Course,
-		"teacher": self.data.Teacher,
-		"timestamp": self.data.TimeStamp,
+		"student": student,
+		"course": course,
+		"teacher": teacher,
+		"timestamp": timestamp,
 	})
-	if err != nil {
-		log.Println(err)
-	}
-}
-type chanUnRegister struct {
-	db string
-	student string
-	course string
+
+	return err
 }
 
-func (self *chanUnRegister) handle() {
-	collection := dbClient.Database(self.db).Collection("register-info")
+func (self *MongoDb) unRegisterCourse(dbName, student, course string)  {
+
+	collection := self.dbClient.Database(dbName).Collection("register-info")
 	cur, err := collection.Find(nil,
-		bson.M{"student": self.student, "course": self.course},
+		bson.M{"student": student, "course": course},
 		options.Find().SetSort(bson.M{"timestamp": -1}).SetLimit(1))
 	if err != nil {
 		log.Println(err)
@@ -96,29 +96,61 @@ func (self *chanUnRegister) handle() {
 	}
 }
 
-type registerData struct {
-	Student string `json:"student"`
-	Course string `json:"course"`
-	Teacher string `json:"teacher"`
-	TimeStamp int64 `json:"timestamp"`
-}
+func (self *MongoDb) getRegisterHistory(dbName, student string) ([]byte, error)  {
 
-//channel 的缓冲大小直接影响响应性能，可以根据情况调节缓冲大小
-var dbChannel = make(chan chanHandler, 20000)
-func dbRoutine() {
-	for {
-		handler := <-dbChannel
-		handler.handle()
+	registerHistory := struct {
+		Data []registerData `json:"data"`
+	}{[]registerData{}}
+
+	collection := self.dbClient.Database(dbName).Collection("register-info")
+	cur, err := collection.Find(nil,
+		bson.M{"student": student},
+		options.Find().SetSort(bson.M{"timestamp": -1}))
+
+	if err != nil {
+		return nil, err
 	}
-}
 
-func (s *school) registerDb(student string, c course) {
-	dbChannel <- &chanRegister{
-		db: s.name,
-		data: registerData{student, c.Name, c.Teacher, time.Now().Unix()},
+	defer cur.Close(nil)
+	for cur.Next(nil) {
+		result := registerData{}
+		cur.Decode(&result)
+		registerHistory.Data = append(registerHistory.Data, result)
 	}
+
+	return json.Marshal(registerHistory)
 }
 
-func (s *school) unRegisterDb(student, course string) {
-	dbChannel <- &chanUnRegister{s.name, student, course}
+func (self *SqlDb) init(ds string) (err error)  {
+
+	return nil
+}
+
+func (self *SqlDb) loadCourses(*school) error {
+	return nil
+}
+
+func (self *SqlDb) registerCourse(dbName, student, course, teacher string,
+	timestamp int64) error {
+
+		return nil
+}
+
+func (self *SqlDb) unRegisterCourse(dbName, student, course string)  {
+
+}
+
+func (self *SqlDb) getRegisterHistory(dbName, student string) ([]byte, error)  {
+	return nil, nil
+}
+
+var _dbs = map[string]database {
+	"mongo": &MongoDb{},
+	"sql": &SqlDb{},
+}
+
+var dbClient = _dbs["mongo"]
+
+func initDb(ds string) (err error) {
+	return dbClient.init(ds)
 }

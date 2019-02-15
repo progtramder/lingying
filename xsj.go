@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +14,12 @@ import (
 	"ziphttp"
 )
 
+type Config struct {
+	Cert string `yaml:"cert_path"`
+	Key  string `yaml:"key_path"`
+	Avatar string `yaml:"avatar_path"`
+}
+
 func main() {
 	cpus := runtime.NumCPU()
 	p := flag.Int("p", cpus - 2, "number of cpu to run on")
@@ -19,8 +27,16 @@ func main() {
 	flag.Parse()
 	runtime.GOMAXPROCS(*p)
 
+	path, _:= filepath.Abs(filepath.Dir(os.Args[0]))
+	config := Config{}
+	setting, err := ioutil.ReadFile(path + "/config.yaml")
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+	yaml.Unmarshal(setting, &config)
+
 	fmt.Println("Loading database...")
-	err := initDb(*ds)
+	err = initDb(*ds)
 	if err != nil {
 		log.Println(err)
 		return
@@ -30,11 +46,14 @@ func main() {
 	time.AfterFunc(time.Second, timerHandler)
 
 	fmt.Println("Start serving on port = 80")
-
+	http.Handle("/avatar/",
+		http.StripPrefix("/avatar/", http.FileServer(http.Dir(config.Avatar))))
 	http.HandleFunc("/cancel", handleCancel)
 	http.HandleFunc("/course", handleCourse)
 	http.HandleFunc("/status", handleStatus)
+	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/register", handleRegister)
+	http.HandleFunc("/authorize", handleAuthorize)
 	http.HandleFunc("/get-timer", handleGetTimer)
 	http.HandleFunc("/set-timer", handleSetTimer)
 	http.HandleFunc("/register-info", handleRegisterInfo)
@@ -46,8 +65,7 @@ func main() {
 		WriteTimeout : 5 * time.Second,
 	}
 	go func() {
-		path, _:= filepath.Abs(filepath.Dir(os.Args[0]))
-		if err := srv.ListenAndServeTLS(path + "/cert", path + "/key"); err != nil {
+		if err := srv.ListenAndServeTLS(config.Cert, config.Key); err != nil {
 			log.Fatal(err)
 		}
 	}()

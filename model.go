@@ -2,6 +2,7 @@ package main
 
 import (
 	"sync"
+	"time"
 )
 
 type course struct {
@@ -21,6 +22,13 @@ type courseObj struct {
 	c course
 }
 
+type registerData struct {
+	Student string `json:"student"`
+	Course string `json:"course"`
+	Teacher string `json:"teacher"`
+	TimeStamp int64 `json:"timestamp"`
+}
+
 type school struct {
 	m sync.Mutex
 	name string
@@ -33,6 +41,10 @@ var schools = map[string]*school{}
 
 func NewCourseObj(name, teacher string, total int, grade []int) *courseObj {
 	return &courseObj{students: map[string]bool{}, c: course{name, teacher, total, 0, grade}}
+}
+
+func init() {
+	go dbRoutine()
 }
 
 func getSchool(name string) *school {
@@ -54,4 +66,55 @@ func getSchool(name string) *school {
 
 	schools[name] = s
 	return s
+}
+
+func (s *school) loadCourses() error {
+	return dbClient.loadCourses(s)
+}
+
+func (s *school) getRegisterHistory(student string) ([]byte, error) {
+	return dbClient.getRegisterHistory(s.name, student)
+}
+
+type chanHandler interface {
+	handle()
+}
+
+type chanRegister struct {
+	db string
+	data registerData
+}
+
+func (self *chanRegister) handle() {
+	dbClient.registerCourse(self.db, self.data.Student,
+		self.data.Course, self.data.Teacher, self.data.TimeStamp)
+}
+
+type chanUnRegister struct {
+	db string
+	student string
+	course string
+}
+
+func (self *chanUnRegister) handle() {
+	dbClient.unRegisterCourse(self.db, self.student, self.course)
+}
+//channel 的缓冲大小直接影响响应性能，可以根据情况调节缓冲大小
+var dbChannel = make(chan chanHandler, 20000)
+func dbRoutine() {
+	for {
+		handler := <-dbChannel
+		handler.handle()
+	}
+}
+
+func (s *school) registerDb(student string, c course) {
+	dbChannel <- &chanRegister{
+		db: s.name,
+		data: registerData{student, c.Name, c.Teacher, time.Now().Unix()},
+	}
+}
+
+func (s *school) unRegisterDb(student, course string) {
+	dbChannel <- &chanUnRegister{s.name, student, course}
 }

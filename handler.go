@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/mongo/options"
 	"log"
 	"net/http"
 	"strconv"
@@ -236,24 +234,7 @@ func handleRegisterHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collection := dbClient.Database(school.name).Collection("register-info")
-	cur, err := collection.Find(nil,
-		bson.M{"student": student},
-		options.Find().SetSort(bson.M{"timestamp": -1}))
-	registerHistory := struct {
-		Data []registerData `json:"data"`
-	}{[]registerData{}}
-
-	if err == nil {
-		defer cur.Close(nil)
-		for cur.Next(nil) {
-			result := registerData{}
-			cur.Decode(&result)
-			registerHistory.Data = append(registerHistory.Data, result)
-		}
-	}
-
-	b, _ := json.Marshal(registerHistory)
+	b, _ := school.getRegisterHistory(student)
 	w.Write(b)
 }
 
@@ -309,4 +290,39 @@ func handleGetTimer(w http.ResponseWriter, r *http.Request) {
 	}
 	mutexTimers.Unlock()
 	w.Write([]byte(fmt.Sprintf(`{"seconds":%s}`, formatTime(seconds))))
+}
+
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil || len(r.Form) != 2 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	school := getSchool(r.FormValue("school"))
+	if school == nil {
+		w.Write([]byte(`{"errCode":1,"errMsg":"数据库错误"}`))
+		return
+	}
+	student := r.FormValue("student")
+	if student == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf(`{"name":"%s","avatar":"%s"}`, "王瑾萱", "/image/main.jpg")))
+}
+
+func handleAuthorize(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil || len(r.Form) != 1 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	code := r.FormValue("code")
+	if code == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte("Not implemented"))
 }
