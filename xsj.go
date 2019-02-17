@@ -43,9 +43,9 @@ func main() {
 	}
 	fmt.Println("Done.")
 
-	time.AfterFunc(time.Second, timerHandler)
+	time.AfterFunc(time.Second, IntervalHandler)
 
-	fmt.Println("Start serving on port = 80")
+	fmt.Println("Starting server...")
 	http.Handle("/avatar/",
 		http.StripPrefix("/avatar/", http.FileServer(http.Dir(config.Avatar))))
 	http.HandleFunc("/cancel", handleCancel)
@@ -71,6 +71,7 @@ func main() {
 	}()
 
 	time.Sleep(time.Second)
+	fmt.Println("Done.")
 
 	ziphttp.CmdLineLoop(prompt, func(input string) int {
 		handler, ok := CmdLineHandler[input]

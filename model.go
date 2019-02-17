@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"sync"
 	"time"
 )
@@ -60,16 +61,21 @@ func getSchool(name string) *school {
 	}
 
 	s = &school{name: name, courses: []*courseObj{}, started:false}
-	if err := s.loadCourses(); err != nil {
-		return nil
-	}
-
 	schools[name] = s
 	return s
 }
 
-func (s *school) loadCourses() error {
-	return dbClient.loadCourses(s)
+func (s *school) loadCourses(table string) error {
+	courses, err := dbClient.loadCourses(s.name, table)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	s.m.Lock()
+	s.courses = courses
+	s.started = false
+	s.m.Unlock()
+	return nil
 }
 
 func (s *school) getRegisterHistory(student string) ([]byte, error) {

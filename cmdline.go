@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,8 +10,9 @@ import (
 	"ziphttp"
 )
 
-const prompt = `1. 设置报名开始时间
-2. 退出`
+const prompt = `1. 设置模块课报名开始时间
+2. 设置拓展课报名开始时间
+3. 退出`
 
 type CLIHandler interface {
 	Handle() int
@@ -46,67 +46,99 @@ func formatTime(seconds int64) string {
 	return formatInt(hour) + ":" + formatInt(minute) + ":" + formatInt(second)
 }
 
-var timers = map[*school]*int64 {} //key:value - 学校:离开始的时间
+var tHandlers = map[THandler]interface{}{} //把map当成list用
 var mutexTimers sync.Mutex
-func timerHandler() {
+func IntervalHandler() {
+	deletingHandlers := make([]THandler, 0)
 	mutexTimers.Lock()
-	for s, t := range timers {
-		*t -= 1
-		fmt.Print(fmt.Sprintf("\r%s ", formatTime(*t)))
-		if *t <= 0 {
-			delete(timers, s)
-			ColorGreen("\n报名已开始...")
-			s.started = true
+	for h := range tHandlers {
+		if h.handle() == Quit() {
+			deletingHandlers = append(deletingHandlers, h)
 		}
+	}
+
+	for _, h := range deletingHandlers {
+		delete(tHandlers, h)
 	}
 	mutexTimers.Unlock()
 
-	time.AfterFunc(time.Second, timerHandler)
+	time.AfterFunc(time.Second, IntervalHandler)
 }
 
-func SetStartTime() int {
-	s := getSchool("mbxsj")
-	if s == nil {
-		log.Println("数据库错误")
-		return Continue()
+func RegisterTHandler(handler THandler) {
+	mutexTimers.Lock()
+	tHandlers[handler] = nil
+	mutexTimers.Unlock()
+}
+
+type THandler interface {
+	handle() int // return value 0: delete the THandler
+}
+
+type CourseStartHandler struct {
+	 s *school
+	 name string //课程类别名称
+	 table string //课程所在的数据库表
+	 seconds int64 //离报课开始的时间
+}
+
+func (self *CourseStartHandler) handle() int {
+	self.seconds -= 1
+	//剩下5分钟时重新加载即将开始的课程
+	if self.seconds == 10 {
+		self.s.loadCourses(self.table)
 	}
-	if !s.started {
-		mutexTimers.Lock()
-		delete(timers, s)
-		mutexTimers.Unlock()
 
-		fmt.Print("输入开始时间<eg. 18:30>: ")
-		input := ziphttp.ReadInput()
-		match, _ := regexp.MatchString(`^\d+:\d+$`, input)
-		if !match {
-			ColorRed("*时间格式错误*")
-			return Continue()
-		}
-
-		timeString := strings.Split(input, ":")
-		hour, _ := strconv.ParseInt(timeString[0], 10, 32)
-		minute, _ := strconv.ParseInt(timeString[1], 10, 32)
-		t := time.Now()
-		nowH := int64(t.Hour())
-		nowM := int64(t.Minute())
-		nowS := int64(t.Second())
-		if hour < nowH || (hour == nowH && minute <= nowM) {
-			ColorRed("*不能早于当前时间*")
-			return Continue()
-		}
-		seconds := (hour - nowH) * 3600 + (minute - nowM) * 60 - nowS
-		mutexTimers.Lock()
-		timers[s] = &seconds
-		mutexTimers.Unlock()
-	} else {
-		ColorGreen("报名已开始...\n")
+	if self.seconds <= 0 {
+		ColorGreen(fmt.Sprintf("\n%s报名已开始...", self.name))
+		self.s.started = true
+		return Quit()
 	}
 
 	return Continue()
 }
 
+func SetStartTime(s* school, name, table string) {
+
+	fmt.Print(fmt.Sprintf("输入%s报名开始时间<eg. 18:30>: ", name))
+	input := ziphttp.ReadInput()
+	match, _ := regexp.MatchString(`^\d+:\d+$`, input)
+	if !match {
+		ColorRed("*时间格式错误*")
+		return
+	}
+
+	timeString := strings.Split(input, ":")
+	hour, _ := strconv.ParseInt(timeString[0], 10, 32)
+	minute, _ := strconv.ParseInt(timeString[1], 10, 32)
+	t := time.Now()
+	nowH := int64(t.Hour())
+	nowM := int64(t.Minute())
+	nowS := int64(t.Second())
+	if hour < nowH || (hour == nowH && minute <= nowM) {
+		ColorRed("*不能早于当前时间*")
+		return
+	}
+	seconds := (hour - nowH) * 3600 + (minute - nowM) * 60 - nowS
+	ColorRed(fmt.Sprintf("%s报名将在 %s 后开始\n", name, formatTime(seconds)))
+	RegisterTHandler(&CourseStartHandler{s, name, table, seconds})
+	return
+}
+
+func course01() int {
+	s := getSchool("mbxsj")
+	SetStartTime(s, "模块课", "course")
+	return Continue()
+}
+
+func course02() int {
+	s := getSchool("mbxsj")
+	SetStartTime(s, "拓展课", "course02")
+	return Continue()
+}
 
 var CmdLineHandler = map[string]CLIHandler{
-	"1": Handler(SetStartTime),
-	"2": Handler(Quit),
+	"1": Handler(course01),
+	"2": Handler(course02),
+	"3": Handler(Quit),
 }

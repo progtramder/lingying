@@ -18,7 +18,7 @@ import (
 
 type database interface {
 	init(string) error
-	loadCourses(*school) error
+	loadCourses(string, string) ([]*courseObj, error)
 	registerCourse(string, string, string, string, int64) error
 	unRegisterCourse(string, string, string) error
 	getRegisterHistory(string, string) ([]byte, error)
@@ -50,27 +50,29 @@ func (self *MongoDb) init(ds string) (err error)  {
 	return nil
 }
 
-func (self *MongoDb) loadCourses(s *school) error {
+func (self *MongoDb) loadCourses(dbName, table string) ([]*courseObj, error) {
+
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
-	collection := self.dbClient.Database(s.name).Collection("course")
+	collection := self.dbClient.Database(dbName).Collection(table)
 	cur, err := collection.Find(nil, bson.M{})
 	if err != nil {
 		log.Println(err)
-		return err
+		return nil, err
 	}
 	defer cur.Close(ctx)
+	courses := make([]*courseObj, 0)
 	for cur.Next(ctx) {
 		result := course{}
 		err := cur.Decode(&result)
 		if err != nil {
 			log.Println(err)
-			return err
+			return nil, err
 		}
-		s.courses = append(s.courses,
+		courses = append(courses,
 			NewCourseObj(result.Name, result.Teacher, result.Total, result.Grade))
 	}
 
-	return nil
+	return courses, nil
 }
 
 func (self *MongoDb) registerCourse(dbName, student, course, teacher string,
@@ -149,17 +151,18 @@ func (self *MongoDb) getStudentProfile(dbName, student string) (string, string, 
 	}
 
 	defer cur.Close(nil)
-	for cur.Next(nil) {
+	if !cur.Next(nil) {
+		err = errors.New("not found")
+	} else {
 		cur.Decode(&profile)
-		break
 	}
-	return profile.Name, profile.Avatar, nil
+	return profile.Name, profile.Avatar, err
 }
 
 func (self *SqlDb) init(ds string) (err error)  {
 
 	var user = "sa"
-	var password = "JESSica1128"
+	var password = "Password"
 	var database = "mbxsj"
 
 	connString := fmt.Sprintf("server=%s;database=%s;user id=%s;password=%s",
@@ -193,41 +196,41 @@ func parseGrade(grade string) []int {
 	return g
 }
 
-func (self *SqlDb) loadCourses(s *school) error {
+func (self *SqlDb) loadCourses(dbName, table string) ([]*courseObj, error) {
 	ctx := context.Background()
-	sql := fmt.Sprintf("SELECT * FROM course")
+	sqlString := fmt.Sprintf("SELECT * FROM %s", table)
 
-	rows, err := self.dbClient.QueryContext(ctx, sql)
+	rows, err := self.dbClient.QueryContext(ctx, sqlString)
 	if err != nil {
 		log.Println(err)
-		return err
+		return nil, err
 	}
 
 	defer rows.Close()
-
+	courses := make([]*courseObj, 0)
 	for rows.Next() {
 		result := course{}
 		grade := ""
 		err := rows.Scan(&result.Name, &result.Teacher, &result.Total, &grade)
 		if err != nil {
 			log.Println(err)
-			return err
+			return nil, err
 		}
 
-		s.courses = append(s.courses,
+		courses = append(courses,
 			NewCourseObj(result.Name, result.Teacher, result.Total, parseGrade(grade)))
 	}
 
-	return nil
+	return courses, nil
 }
 
 func (self *SqlDb) registerCourse(dbName, student, course, teacher string,
 	timestamp int64) error {
 
-	sql := fmt.Sprintf(`INSERT INTO register_info VALUES (N'%s', N'%s', N'%s', %d)`,
+	sqlString := fmt.Sprintf(`INSERT INTO register_info VALUES (N'%s', N'%s', N'%s', %d)`,
 		student, course, teacher, timestamp)
 
-	_, err := self.dbClient.Exec(sql)
+	_, err := self.dbClient.Exec(sqlString)
 	if err != nil {
 		log.Println(err)
 	}
@@ -236,10 +239,10 @@ func (self *SqlDb) registerCourse(dbName, student, course, teacher string,
 
 func (self *SqlDb) unRegisterCourse(dbName, student, course string) error {
 	ctx := context.Background()
-	sql := fmt.Sprintf(`SELECT TOP 1 timestamp FROM register_info WHERE student='%s' AND course='%s' ORDER BY timestamp DESC`,
+	sqlString := fmt.Sprintf(`SELECT TOP 1 timestamp FROM register_info WHERE student='%s' AND course='%s' ORDER BY timestamp DESC`,
 		student, course)
 
-	rows, err := self.dbClient.QueryContext(ctx, sql)
+	rows, err := self.dbClient.QueryContext(ctx, sqlString)
 	if err != nil {
 		log.Println(err)
 		return err
@@ -258,10 +261,10 @@ func (self *SqlDb) unRegisterCourse(dbName, student, course string) error {
 		return err
 	}
 
-	sql = fmt.Sprintf(`DELETE FROM register_info WHERE student='%s' AND course='%s' AND timestamp=%d`,
+	sqlString = fmt.Sprintf(`DELETE FROM register_info WHERE student='%s' AND course='%s' AND timestamp=%d`,
 		student, course, timestamp)
 
-	_, err = self.dbClient.Exec(sql)
+	_, err = self.dbClient.Exec(sqlString)
 	if err != nil {
 		log.Println(err)
 	}
@@ -274,9 +277,9 @@ func (self *SqlDb) getRegisterHistory(dbName, student string) ([]byte, error)  {
 	}{[]registerData{}}
 
 	ctx := context.Background()
-	sql := fmt.Sprintf(`SELECT * FROM register_info WHERE student='%s' ORDER BY timestamp DESC`, student)
+	sqlString := fmt.Sprintf(`SELECT * FROM register_info WHERE student='%s' ORDER BY timestamp DESC`, student)
 
-	rows, err := self.dbClient.QueryContext(ctx, sql)
+	rows, err := self.dbClient.QueryContext(ctx, sqlString)
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -299,9 +302,9 @@ func (self *SqlDb) getRegisterHistory(dbName, student string) ([]byte, error)  {
 func (self *SqlDb) getStudentProfile(dbName, student string) (string, string, error)  {
 
 	ctx := context.Background()
-	sql := fmt.Sprintf("SELECT name, avatar FROM profile WHERE student=%s", student)
+	sqlString := fmt.Sprintf("SELECT name, avatar FROM profile WHERE student=%s", student)
 
-	rows, err := self.dbClient.QueryContext(ctx, sql)
+	rows, err := self.dbClient.QueryContext(ctx, sqlString)
 	if err != nil {
 		log.Println(err)
 		return "", "", err
@@ -317,6 +320,7 @@ func (self *SqlDb) getStudentProfile(dbName, student string) (string, string, er
 		if err != nil {
 			log.Println(err)
 		}
+		//avatar = "https://xsj.chneic.sh.cn/avatar/" + avatar
 	}
 
 	return name, avatar, err
@@ -327,7 +331,7 @@ var _dbs = map[string]database {
 	"sql": &SqlDb{},
 }
 
-var dbClient = _dbs["sql"]
+var dbClient = _dbs["mongo"]
 
 func initDb(ds string) (err error) {
 	return dbClient.init(ds)
