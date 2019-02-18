@@ -80,12 +80,12 @@ type CourseStartHandler struct {
 	 name string //课程类别名称
 	 table string //课程所在的数据库表
 	 seconds int64 //离报课开始的时间
+	 secondsToLoad int64 //加载课程距离报名开始的时间
 }
 
 func (self *CourseStartHandler) handle() int {
 	self.seconds -= 1
-	//剩下5分钟时重新加载即将开始的课程
-	if self.seconds == 10 {
+	if self.seconds == self.secondsToLoad {
 		self.s.loadCourses(self.table)
 	}
 
@@ -121,7 +121,14 @@ func SetStartTime(s* school, name, table string) {
 	}
 	seconds := (hour - nowH) * 3600 + (minute - nowM) * 60 - nowS
 	ColorRed(fmt.Sprintf("%s报名将在 %s 后开始\n", name, formatTime(seconds)))
-	RegisterTHandler(&CourseStartHandler{s, name, table, seconds})
+
+	//如果离报名开始的时间小于sToLoad则立刻加载课程
+	const sToLoad = 10
+	h := &CourseStartHandler{s, name, table, seconds, sToLoad}
+	if seconds <= sToLoad {
+		s.loadCourses(table)
+	}
+	RegisterTHandler(h)
 	return
 }
 

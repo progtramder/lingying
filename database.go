@@ -302,7 +302,7 @@ func (self *SqlDb) getRegisterHistory(dbName, student string) ([]byte, error)  {
 func (self *SqlDb) getStudentProfile(dbName, student string) (string, string, error)  {
 
 	ctx := context.Background()
-	sqlString := fmt.Sprintf("SELECT name, avatar FROM profile WHERE student=%s", student)
+	sqlString := fmt.Sprintf("SELECT name, avatar FROM profile WHERE student='%s'", student)
 
 	rows, err := self.dbClient.QueryContext(ctx, sqlString)
 	if err != nil {

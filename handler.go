@@ -143,13 +143,13 @@ func handleCourse(w http.ResponseWriter, r *http.Request) {
 	year, _ := strconv.ParseInt(student[0:2], 10 ,32)
 	grade := getGrade(int(year))
 	var cl = courseList{[]course{}}
-	school.m.Lock()
+	school.m.RLock()
 	for _, v := range school.courses {
 		if gradeFilter(v.c.Grade, grade) {
 			cl.Data = append(cl.Data, v.c)
 		}
 	}
-	school.m.Unlock()
+	school.m.RUnlock()
 	b, err := json.Marshal(&cl)
 	if err != nil {
 		log.Println(err)
@@ -185,7 +185,7 @@ func handleRegisterInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	course := ""
-	school.m.Lock()
+	school.m.RLock()
 	for _, v := range school.courses {
 		_, ok := v.students[student]
 		if ok {
@@ -193,7 +193,7 @@ func handleRegisterInfo(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	school.m.Unlock()
+	school.m.RUnlock()
 
 	w.Write([]byte(fmt.Sprintf(`{"course":"%s"}`, course)))
 }

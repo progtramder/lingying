@@ -31,13 +31,13 @@ type registerData struct {
 }
 
 type school struct {
-	m sync.Mutex
+	m sync.RWMutex
 	name string
 	courses []*courseObj
 	started bool //报名是否已经开始
 }
 
-var mutexSchool sync.Mutex
+var mutexSchool sync.RWMutex
 var schools = map[string]*school{}
 
 func NewCourseObj(name, teacher string, total int, grade []int) *courseObj {
@@ -53,15 +53,17 @@ func getSchool(name string) *school {
 		return nil
 	}
 
-	mutexSchool.Lock()
-	defer mutexSchool.Unlock()
+	mutexSchool.RLock()
 	s := schools[name]
+	mutexSchool.RUnlock()
 	if s != nil {
 		return s
 	}
 
 	s = &school{name: name, courses: []*courseObj{}, started:false}
+	mutexSchool.Lock()
 	schools[name] = s
+	mutexSchool.Unlock()
 	return s
 }
 
