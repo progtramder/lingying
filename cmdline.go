@@ -48,6 +48,7 @@ func formatTime(seconds int64) string {
 
 var tHandlers = map[THandler]interface{}{} //把map当成list用
 var mutexTimers sync.Mutex
+
 func IntervalHandler() {
 	deletingHandlers := make([]THandler, 0)
 	mutexTimers.Lock()
@@ -77,7 +78,7 @@ type THandler interface {
 
 type CourseStartHandler struct {
 	 s *school
-	 name string //课程类别名称
+	 name string //课程类别名称，例如：数学课
 	 table string //课程所在的数据库表
 	 seconds int64 //离报课开始的时间
 	 secondsToLoad int64 //加载课程距离报名开始的时间
@@ -86,7 +87,7 @@ type CourseStartHandler struct {
 func (self *CourseStartHandler) handle() int {
 	self.seconds -= 1
 	if self.seconds == self.secondsToLoad {
-		self.s.loadCourses(self.table)
+		self.s.loadCourses(self.name, self.table)
 	}
 
 	if self.seconds <= 0 {
@@ -126,7 +127,7 @@ func SetStartTime(s* school, name, table string) {
 	const sToLoad = 10
 	h := &CourseStartHandler{s, name, table, seconds, sToLoad}
 	if seconds <= sToLoad {
-		s.loadCourses(table)
+		s.loadCourses(name, table)
 	}
 	RegisterTHandler(h)
 	return
@@ -144,8 +145,16 @@ func course02() int {
 	return Continue()
 }
 
+func test() int {
+	s := getSchool("mbxsj")
+	s.loadCourses("拓展课", "course02")
+	s.started = true
+	return Continue()
+}
+
 var CmdLineHandler = map[string]CLIHandler{
 	"1": Handler(course01),
 	"2": Handler(course02),
 	"3": Handler(Quit),
+	"test": Handler(test),
 }

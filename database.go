@@ -227,7 +227,7 @@ func (self *SqlDb) loadCourses(dbName, table string) ([]*courseObj, error) {
 func (self *SqlDb) registerCourse(dbName, student, course, teacher string,
 	timestamp int64) error {
 
-	sqlString := fmt.Sprintf(`INSERT INTO register_info VALUES (N'%s', N'%s', N'%s', %d)`,
+	sqlString := fmt.Sprintf(`INSERT INTO register_info_test VALUES (N'%s', N'%s', N'%s', %d)`,
 		student, course, teacher, timestamp)
 
 	_, err := self.dbClient.Exec(sqlString)
@@ -239,7 +239,7 @@ func (self *SqlDb) registerCourse(dbName, student, course, teacher string,
 
 func (self *SqlDb) unRegisterCourse(dbName, student, course string) error {
 	ctx := context.Background()
-	sqlString := fmt.Sprintf(`SELECT TOP 1 timestamp FROM register_info WHERE student='%s' AND course='%s' ORDER BY timestamp DESC`,
+	sqlString := fmt.Sprintf(`SELECT TOP 1 timestamp FROM register_info_test WHERE student='%s' AND course='%s' ORDER BY timestamp DESC`,
 		student, course)
 
 	rows, err := self.dbClient.QueryContext(ctx, sqlString)

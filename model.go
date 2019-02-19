@@ -35,6 +35,7 @@ type school struct {
 	name string
 	courses []*courseObj
 	started bool //报名是否已经开始
+	courseTag string //正在报名的课程类别名称，例如：数学课
 }
 
 var mutexSchool sync.RWMutex
@@ -67,7 +68,7 @@ func getSchool(name string) *school {
 	return s
 }
 
-func (s *school) loadCourses(table string) error {
+func (s *school) loadCourses(name, table string) error {
 	courses, err := dbClient.loadCourses(s.name, table)
 	if err != nil {
 		log.Println(err)
@@ -76,6 +77,7 @@ func (s *school) loadCourses(table string) error {
 	s.m.Lock()
 	s.courses = courses
 	s.started = false
+	s.courseTag = name
 	s.m.Unlock()
 	return nil
 }

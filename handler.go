@@ -29,11 +29,6 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	school := getSchool(r.FormValue("school"))
-	if !school.started {
-		w.Write([]byte(`{"errCode":1,"errMsg":"报名未开始"}`))
-		return
-	}
-
 	student := r.FormValue("student")
 	course := r.FormValue("course")
 	if student == "" || course == "" {
@@ -44,7 +39,9 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 	errCode := 1
 	errMsg := "报名失败"
 	school.m.Lock()
-	if isMultiRegistered(school, student, course) {
+	if !school.started {
+		errMsg = "报名未开始"
+	} else if isMultiRegistered(school, student, course) {
 		errMsg = "禁止报多门课"
 	} else {
 		for _, v := range school.courses {
@@ -166,9 +163,9 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	school := getSchool(r.FormValue("school"))
 	if school.started {
-		w.Write([]byte(`{"status":"started"}`))
+		w.Write([]byte(fmt.Sprintf(`{"status":"started","courseTag":"%s"}`, school.courseTag)))
 	} else {
-		w.Write([]byte(`{"status":"notStarted"}`))
+		w.Write([]byte(fmt.Sprintf(`{"status":"notStarted","courseTag":"%s"}`, school.courseTag)))
 	}
 }
 
@@ -232,7 +229,26 @@ func handleGetTimer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("Not Implemented"))
+	school := getSchool(r.FormValue("school"))
+	type CourseTimer struct {
+		Name string `json:"name"`
+		Time string `json:"time"`
+	}
+	timers := struct{
+		Data []CourseTimer `json:"data"`
+	}{[]CourseTimer{}}
+	mutexTimers.Lock()
+	for k := range tHandlers {
+		if c, ok := k.(*CourseStartHandler); ok {
+			if c.s == school {
+				timers.Data = append(timers.Data,
+					CourseTimer{c.name, formatTime(c.seconds)})
+			}
+		}
+	}
+	mutexTimers.Unlock()
+	b, _ := json.Marshal(&timers)
+	w.Write(b)
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
