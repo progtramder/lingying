@@ -45,9 +45,9 @@ func main() {
 
 	time.AfterFunc(time.Second, IntervalHandler)
 
-	fmt.Println("Starting server...")
+	fmt.Println("Starting server on port:443 ...")
 	http.Handle("/avatar/",
-		http.StripPrefix("/avatar/", http.FileServer(http.Dir(config.Avatar))))
+		http.StripPrefix("/avatar/", FileServer(config.Avatar)))
 	http.HandleFunc("/cancel", handleCancel)
 	http.HandleFunc("/course", handleCourse)
 	http.HandleFunc("/status", handleStatus)
@@ -61,8 +61,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:        ":443",
-		ReadTimeout  : 5 * time.Second,
-		WriteTimeout : 5 * time.Second,
+		ReadTimeout  : 3 * time.Second,
 	}
 	go func() {
 		if err := srv.ListenAndServeTLS(config.Cert, config.Key); err != nil {

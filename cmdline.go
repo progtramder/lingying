@@ -99,13 +99,35 @@ func (self *CourseStartHandler) handle() int {
 	return Continue()
 }
 
+func checkTimer(s *school, seconds int64) (bValid bool) {
+	abs := func(a, b int64) int64 {
+		if a > b {
+			return a - b
+		}
+		return b -a
+	}
+	bValid = true
+	mutexTimers.Lock()
+	for k := range tHandlers {
+		if c, ok := k.(*CourseStartHandler); ok {
+			//报名开始时间的间隔不能少于30分钟，容忍误差，取1795秒近似30分钟
+			if c.s == s && abs(c.seconds, seconds) < 1795 {
+				bValid = false
+				break
+			}
+		}
+	}
+	mutexTimers.Unlock()
+	return bValid
+}
+
 func SetStartTime(s* school, name, table string) {
 
 	fmt.Print(fmt.Sprintf("输入%s报名开始时间<eg. 18:30>: ", name))
 	input := ziphttp.ReadInput()
 	match, _ := regexp.MatchString(`^\d+:\d+$`, input)
 	if !match {
-		ColorRed("*时间格式错误*")
+		ColorRed("设置失败：时间格式错误")
 		return
 	}
 
@@ -117,14 +139,19 @@ func SetStartTime(s* school, name, table string) {
 	nowM := int64(t.Minute())
 	nowS := int64(t.Second())
 	if hour < nowH || (hour == nowH && minute <= nowM) {
-		ColorRed("*不能早于当前时间*")
+		ColorRed("设置失败：不能早于当前时间")
 		return
 	}
 	seconds := (hour - nowH) * 3600 + (minute - nowM) * 60 - nowS
-	ColorRed(fmt.Sprintf("%s报名将在 %s 后开始\n", name, formatTime(seconds)))
+	if !checkTimer(s, seconds) {
+		ColorRed("设置失败：与已有报名的开始时间间隔不能少于30分钟")
+		return
+	}
+
+	ColorRed(fmt.Sprintf("设置成功：%s报名将在 %s 后开始\n", name, formatTime(seconds)))
 
 	//如果离报名开始的时间小于sToLoad则立刻加载课程
-	const sToLoad = 10
+	const sToLoad = 300 //默认5分钟
 	h := &CourseStartHandler{s, name, table, seconds, sToLoad}
 	if seconds <= sToLoad {
 		s.loadCourses(name, table)
@@ -147,8 +174,9 @@ func course02() int {
 
 func test() int {
 	s := getSchool("mbxsj")
-	s.loadCourses("拓展课", "course02")
-	s.started = true
+	h := &CourseStartHandler{s, "拓展课", "course02", 1, 0}
+	RegisterTHandler(h)
+
 	return Continue()
 }
 
