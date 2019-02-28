@@ -61,7 +61,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:        ":443",
-		ReadTimeout  : 3 * time.Second,
+		ReadTimeout  : 5 * time.Second,
 	}
 	go func() {
 		if err := srv.ListenAndServeTLS(config.Cert, config.Key); err != nil {
