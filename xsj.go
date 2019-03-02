@@ -38,38 +38,38 @@ func main() {
 	fmt.Println("Loading database...")
 	err = initDb(*ds)
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 	fmt.Println("Done.")
 
 	time.AfterFunc(time.Second, IntervalHandler)
 
-	fmt.Println("Starting server on port:443 ...")
-	http.Handle("/avatar/",
-		http.StripPrefix("/avatar/", FileServer(config.Avatar)))
-	http.HandleFunc("/cancel", handleCancel)
-	http.HandleFunc("/course", handleCourse)
-	http.HandleFunc("/status", handleStatus)
-	http.HandleFunc("/login", handleLogin)
-	http.HandleFunc("/register", handleRegister)
-	http.HandleFunc("/authorize", handleAuthorize)
-	http.HandleFunc("/get-timer", handleGetTimer)
-	http.HandleFunc("/set-timer", handleSetTimer)
-	http.HandleFunc("/register-info", handleRegisterInfo)
-	http.HandleFunc("/register-history", handleRegisterHistory)
-
-	srv := &http.Server{
-		Addr:        ":443",
-		ReadTimeout  : 5 * time.Second,
-	}
+	ch := make(chan bool)
 	go func() {
-		if err := srv.ListenAndServeTLS(config.Cert, config.Key); err != nil {
-			log.Fatal(err)
+		fmt.Println("Starting server on port:443 ...")
+		http.Handle("/avatar/",
+			http.StripPrefix("/avatar/", FileServer(config.Avatar)))
+		http.HandleFunc("/cancel", handleCancel)
+		http.HandleFunc("/course", handleCourse)
+		http.HandleFunc("/status", handleStatus)
+		http.HandleFunc("/login", handleLogin)
+		http.HandleFunc("/register", handleRegister)
+		http.HandleFunc("/authorize", handleAuthorize)
+		http.HandleFunc("/get-timer", handleGetTimer)
+		http.HandleFunc("/set-timer", handleSetTimer)
+		http.HandleFunc("/register-info", handleRegisterInfo)
+		http.HandleFunc("/register-history", handleRegisterHistory)
+
+		srv := &http.Server{
+			Addr:        ":443",
+			ReadTimeout  : 5 * time.Second,
 		}
+
+		ch <- true
+		log.Fatal(srv.ListenAndServeTLS(config.Cert, config.Key))
 	}()
 
-	time.Sleep(time.Second)
+	<- ch
 	fmt.Println("Done.")
 
 	ziphttp.CmdLineLoop(prompt, func(input string) int {
