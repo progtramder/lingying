@@ -61,10 +61,16 @@ func getSchool(name string) *school {
 		return s
 	}
 
-	s = &school{name: name, courses: []*courseObj{}, started:false}
+	//在大多数情况下程序不会执行到这里，只有极端情况下2个以上协程
+	//走到这里并且只有一个会抢到写锁并且创建school对象，所以其余的协程
+	//被唤醒后需要检查是否school对象是否已经被创建
 	mutexSchool.Lock()
+	defer mutexSchool.Unlock()
+	if s = schools[name]; s != nil {
+		return s
+	}
+	s = &school{name: name, courses: []*courseObj{}, started:false}
 	schools[name] = s
-	mutexSchool.Unlock()
 	return s
 }
 
