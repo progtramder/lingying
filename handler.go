@@ -45,7 +45,7 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		errMsg = "禁止报多门课"
 	} else {
 		for _, v := range school.courses {
-			if course == v.c.Name  {
+			if course == v.c.Name {
 				if v.c.Number < v.c.Total {
 					if _, ok := v.students[student]; ok {
 						errMsg = "重复报名"
@@ -86,7 +86,7 @@ func handleCancel(w http.ResponseWriter, r *http.Request) {
 	errMsg := "取消失败"
 	school.m.Lock()
 	for _, v := range school.courses {
-		if course == v.c.Name  {
+		if course == v.c.Name {
 			if _, ok := v.students[student]; ok {
 				v.c.Number -= 1
 				delete(v.students, student)
@@ -137,7 +137,7 @@ func handleCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	year, _ := strconv.ParseInt(student[0:2], 10 ,32)
+	year, _ := strconv.ParseInt(student[0:2], 10, 32)
 	grade := getGrade(int(year))
 	var cl = courseList{[]course{}}
 	school.m.RLock()
@@ -234,7 +234,7 @@ func handleGetTimer(w http.ResponseWriter, r *http.Request) {
 		Name string `json:"name"`
 		Time string `json:"time"`
 	}
-	timers := struct{
+	timers := struct {
 		Data []CourseTimer `json:"data"`
 	}{[]CourseTimer{}}
 	mutexTimers.Lock()

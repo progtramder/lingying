@@ -18,13 +18,13 @@ func ColorPrint(s string, i int) {
 }
 
 func ColorRed(s string) {
-	ColorPrint(s, 4 | 8)
+	ColorPrint(s, 4|8)
 }
 
 func ColorGreen(s string) {
-	ColorPrint(s, 2 | 8)
+	ColorPrint(s, 2|8)
 }
 
 func ColorBlue(s string) {
-	ColorPrint(s, 1 | 8)
+	ColorPrint(s, 1|8)
 }

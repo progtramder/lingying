@@ -33,7 +33,7 @@ type SqlDb struct {
 	dbClient *sql.DB
 }
 
-func (self *MongoDb) init(ds string) (err error)  {
+func (self *MongoDb) init(ds string) (err error) {
 	self.dbClient, err = mongo.NewClient(fmt.Sprintf(`mongodb://%s:27017`, ds))
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 	err = self.dbClient.Connect(ctx)
@@ -80,16 +80,16 @@ func (self *MongoDb) registerCourse(dbName, student, course, teacher string,
 
 	collection := self.dbClient.Database(dbName).Collection("register-info")
 	_, err := collection.InsertOne(nil, bson.M{
-		"student": student,
-		"course": course,
-		"teacher": teacher,
+		"student":   student,
+		"course":    course,
+		"teacher":   teacher,
 		"timestamp": timestamp,
 	})
 
 	return err
 }
 
-func (self *MongoDb) unRegisterCourse(dbName, student, course string) error  {
+func (self *MongoDb) unRegisterCourse(dbName, student, course string) error {
 
 	collection := self.dbClient.Database(dbName).Collection("register-info")
 	cur, err := collection.Find(nil,
@@ -112,7 +112,7 @@ func (self *MongoDb) unRegisterCourse(dbName, student, course string) error  {
 	return nil
 }
 
-func (self *MongoDb) getRegisterHistory(dbName, student string) ([]byte, error)  {
+func (self *MongoDb) getRegisterHistory(dbName, student string) ([]byte, error) {
 
 	registerHistory := struct {
 		Data []registerData `json:"data"`
@@ -137,10 +137,10 @@ func (self *MongoDb) getRegisterHistory(dbName, student string) ([]byte, error) 
 	return json.Marshal(registerHistory)
 }
 
-func (self *MongoDb) getStudentProfile(dbName, student string) (string, string, error)  {
+func (self *MongoDb) getStudentProfile(dbName, student string) (string, string, error) {
 
 	profile := struct {
-		Name string `json:"name"`
+		Name   string `json:"name"`
 		Avatar string `json:"avatar"`
 	}{}
 
@@ -159,7 +159,7 @@ func (self *MongoDb) getStudentProfile(dbName, student string) (string, string, 
 	return profile.Name, profile.Avatar, err
 }
 
-func (self *SqlDb) init(ds string) (err error)  {
+func (self *SqlDb) init(ds string) (err error) {
 
 	var user = "sa"
 	var password = "Password"
@@ -271,7 +271,7 @@ func (self *SqlDb) unRegisterCourse(dbName, student, course string) error {
 	return err
 }
 
-func (self *SqlDb) getRegisterHistory(dbName, student string) ([]byte, error)  {
+func (self *SqlDb) getRegisterHistory(dbName, student string) ([]byte, error) {
 	registerHistory := struct {
 		Data []registerData `json:"data"`
 	}{[]registerData{}}
@@ -299,7 +299,7 @@ func (self *SqlDb) getRegisterHistory(dbName, student string) ([]byte, error)  {
 	return json.Marshal(registerHistory)
 }
 
-func (self *SqlDb) getStudentProfile(dbName, student string) (string, string, error)  {
+func (self *SqlDb) getStudentProfile(dbName, student string) (string, string, error) {
 
 	ctx := context.Background()
 	sqlString := fmt.Sprintf("SELECT name, avatar FROM profile WHERE student='%s'", student)
@@ -326,9 +326,9 @@ func (self *SqlDb) getStudentProfile(dbName, student string) (string, string, er
 	return name, avatar, err
 }
 
-var _dbs = map[string]database {
+var _dbs = map[string]database{
 	"mongo": &MongoDb{},
-	"sql": &SqlDb{},
+	"sql":   &SqlDb{},
 }
 
 var dbClient = _dbs["mongo"]

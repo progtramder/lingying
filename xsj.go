@@ -15,19 +15,19 @@ import (
 )
 
 type Config struct {
-	Cert string `yaml:"cert_path"`
-	Key  string `yaml:"key_path"`
+	Cert   string `yaml:"cert_path"`
+	Key    string `yaml:"key_path"`
 	Avatar string `yaml:"avatar_path"`
 }
 
 func main() {
 	cpus := runtime.NumCPU()
-	p := flag.Int("p", cpus - 2, "number of cpu to run on")
+	p := flag.Int("p", cpus-2, "number of cpu to run on")
 	ds := flag.String("ds", "localhost", "ip address of db server")
 	flag.Parse()
 	runtime.GOMAXPROCS(*p)
 
-	path, _:= filepath.Abs(filepath.Dir(os.Args[0]))
+	path, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	config := Config{}
 	setting, err := ioutil.ReadFile(path + "/config.yaml")
 	if err != nil {
@@ -62,14 +62,14 @@ func main() {
 
 		srv := &http.Server{
 			Addr:        ":443",
-			ReadTimeout  : 5 * time.Second,
+			ReadTimeout: 5 * time.Second,
 		}
 
 		ch <- true
 		log.Fatal(srv.ListenAndServeTLS(config.Cert, config.Key))
 	}()
 
-	<- ch
+	<-ch
 	fmt.Println("Done.")
 
 	ziphttp.CmdLineLoop(prompt, func(input string) int {

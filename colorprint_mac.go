@@ -7,7 +7,6 @@ import (
 	"ziphttp"
 )
 
-
 func ColorRed(s string) {
 	fmt.Println(ziphttp.ColorRed(s))
 }

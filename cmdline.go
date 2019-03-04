@@ -32,8 +32,7 @@ func Continue() int {
 	return 1
 }
 
-
-func formatInt(n int64) string{
+func formatInt(n int64) string {
 	if n >= 10 {
 		return fmt.Sprintf("%d", n)
 	}
@@ -41,8 +40,8 @@ func formatInt(n int64) string{
 }
 func formatTime(seconds int64) string {
 	hour := seconds / 3600
-	minute :=  (seconds - hour * 3600) / 60
-	second := seconds - hour * 3600 - minute * 60
+	minute := (seconds - hour*3600) / 60
+	second := seconds - hour*3600 - minute*60
 	return formatInt(hour) + ":" + formatInt(minute) + ":" + formatInt(second)
 }
 
@@ -77,11 +76,11 @@ type THandler interface {
 }
 
 type CourseStartHandler struct {
-	 s *school
-	 name string //课程类别名称，例如：数学课
-	 table string //课程所在的数据库表
-	 seconds int64 //离报课开始的时间
-	 secondsToLoad int64 //加载课程距离报名开始的时间
+	s             *school
+	name          string //课程类别名称，例如：数学课
+	table         string //课程所在的数据库表
+	seconds       int64  //离报课开始的时间
+	secondsToLoad int64  //加载课程距离报名开始的时间
 }
 
 func (self *CourseStartHandler) handle() int {
@@ -104,7 +103,7 @@ func checkTimer(s *school, seconds int64) (bValid bool) {
 		if a > b {
 			return a - b
 		}
-		return b -a
+		return b - a
 	}
 	bValid = true
 	mutexTimers.Lock()
@@ -121,7 +120,7 @@ func checkTimer(s *school, seconds int64) (bValid bool) {
 	return bValid
 }
 
-func SetStartTime(s* school, name, table string) {
+func SetStartTime(s *school, name, table string) {
 
 	fmt.Print(fmt.Sprintf("输入%s报名开始时间<eg. 18:30>: ", name))
 	input := ziphttp.ReadInput()
@@ -142,7 +141,7 @@ func SetStartTime(s* school, name, table string) {
 		ColorRed("设置失败：不能早于当前时间")
 		return
 	}
-	seconds := (hour - nowH) * 3600 + (minute - nowM) * 60 - nowS
+	seconds := (hour-nowH)*3600 + (minute-nowM)*60 - nowS
 	if !checkTimer(s, seconds) {
 		ColorRed("设置失败：与已有报名的开始时间间隔不能少于30分钟")
 		return
@@ -181,8 +180,8 @@ func test() int {
 }
 
 var CmdLineHandler = map[string]CLIHandler{
-	"1": Handler(course01),
-	"2": Handler(course02),
-	"3": Handler(Quit),
+	"1":    Handler(course01),
+	"2":    Handler(course02),
+	"3":    Handler(Quit),
 	"test": Handler(test),
 }

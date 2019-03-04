@@ -7,11 +7,11 @@ import (
 )
 
 type course struct {
-	Name string `json:"name"`
+	Name    string `json:"name"`
 	Teacher string `json:"teacher"`
-	Total int `json:"total"`  //总人数
-	Number int `json:"number"` //已报人数
-	Grade []int `json:"grade"` //适合年级
+	Total   int    `json:"total"`  //总人数
+	Number  int    `json:"number"` //已报人数
+	Grade   []int  `json:"grade"`  //适合年级
 }
 
 type courseList struct {
@@ -20,21 +20,21 @@ type courseList struct {
 
 type courseObj struct {
 	students map[string]bool //已报名的学生
-	c course
+	c        course
 }
 
 type registerData struct {
-	Student string `json:"student"`
-	Course string `json:"course"`
-	Teacher string `json:"teacher"`
-	TimeStamp int64 `json:"timestamp"`
+	Student   string `json:"student"`
+	Course    string `json:"course"`
+	Teacher   string `json:"teacher"`
+	TimeStamp int64  `json:"timestamp"`
 }
 
 type school struct {
-	m sync.RWMutex
-	name string
-	courses []*courseObj
-	started bool //报名是否已经开始
+	m         sync.RWMutex
+	name      string
+	courses   []*courseObj
+	started   bool   //报名是否已经开始
 	courseTag string //正在报名的课程类别名称，例如：数学课
 }
 
@@ -69,7 +69,7 @@ func getSchool(name string) *school {
 	if s = schools[name]; s != nil {
 		return s
 	}
-	s = &school{name: name, courses: []*courseObj{}, started:false}
+	s = &school{name: name, courses: []*courseObj{}, started: false}
 	schools[name] = s
 	return s
 }
@@ -101,7 +101,7 @@ type chanHandler interface {
 }
 
 type chanRegister struct {
-	db string
+	db   string
 	data registerData
 }
 
@@ -111,16 +111,18 @@ func (self *chanRegister) handle() {
 }
 
 type chanUnRegister struct {
-	db string
+	db      string
 	student string
-	course string
+	course  string
 }
 
 func (self *chanUnRegister) handle() {
 	dbClient.unRegisterCourse(self.db, self.student, self.course)
 }
+
 //channel 的缓冲大小直接影响响应性能，可以根据情况调节缓冲大小
 var dbChannel = make(chan chanHandler, 20000)
+
 func dbRoutine() {
 	for {
 		handler := <-dbChannel
@@ -130,7 +132,7 @@ func dbRoutine() {
 
 func (s *school) registerDb(student string, c course) {
 	dbChannel <- &chanRegister{
-		db: s.name,
+		db:   s.name,
 		data: registerData{student, c.Name, c.Teacher, time.Now().Unix()},
 	}
 }
