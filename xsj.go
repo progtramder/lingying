@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"gopkg.in/yaml.v2"
@@ -44,7 +45,7 @@ func main() {
 
 	time.AfterFunc(time.Second, IntervalHandler)
 
-	ch := make(chan bool)
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		fmt.Println("Starting server on port:443 ...")
 		http.Handle("/avatar/",
@@ -65,11 +66,11 @@ func main() {
 			ReadTimeout: 5 * time.Second,
 		}
 
-		ch <- true
+		cancel()
 		log.Fatal(srv.ListenAndServeTLS(config.Cert, config.Key))
 	}()
 
-	<-ch
+	<-ctx.Done()
 	fmt.Println("Done.")
 
 	ziphttp.CmdLineLoop(prompt, func(input string) int {

@@ -18,10 +18,19 @@ type CLIHandler interface {
 	Handle() int
 }
 
-type Handler func() int
+type CLIContinue func()
 
-func (h Handler) Handle() int {
-	return h()
+func (h CLIContinue) Handle() int {
+	h()
+	return Continue()
+}
+
+type quit struct {}
+func (h quit) Handle() int {
+	return Quit()
+}
+func CLIQuit() CLIHandler {
+	return quit{}
 }
 
 func Quit() int {
@@ -159,29 +168,25 @@ func SetStartTime(s *school, name, table string) {
 	return
 }
 
-func course01() int {
+func course01() {
 	s := getSchool("mbxsj")
 	SetStartTime(s, "模块课", "course")
-	return Continue()
 }
 
-func course02() int {
+func course02() {
 	s := getSchool("mbxsj")
 	SetStartTime(s, "拓展课", "course02")
-	return Continue()
 }
 
-func test() int {
+func test() {
 	s := getSchool("mbxsj")
 	h := &CourseStartHandler{s, "拓展课", "course02", 1, 0}
 	RegisterTHandler(h)
-
-	return Continue()
 }
 
 var CmdLineHandler = map[string]CLIHandler{
-	"1":    Handler(course01),
-	"2":    Handler(course02),
-	"3":    Handler(Quit),
-	"test": Handler(test),
+	"1":    CLIContinue(course01),
+	"2":    CLIContinue(course02),
+	"3":    CLIQuit(),
+	"test": CLIContinue(test),
 }
